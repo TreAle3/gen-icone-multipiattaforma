@@ -1,0 +1,87 @@
+{
+  "name": "icon-generator-multi-platform",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Generatore di icone multi-piattaforma con ottimizzazione avanzata usando Pica.js",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx,ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext js,jsx,ts,tsx --fix",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "icon-generator",
+    "multi-platform",
+    "android",
+    "ios",
+    "windows",
+    "browser",
+    "favicon",
+    "pica.js",
+    "image-optimization",
+    "react",
+    "typescript"
+  ],
+  "author": "Alessandro Borgacci",
+  "license": "MIT",
+  "dependencies": {
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "pica": "^9.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/typography": "^0.5.9",
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/file-saver": "^2.0.5",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@typescript-eslint/eslint-plugin": "^8.36.0",
+    "@typescript-eslint/parser": "^8.36.0",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "postcss": "^8.4.27",
+    "tailwindcss": "^4.1.11",
+    "terser": "^5.43.1",
+    "typescript": "^5.0.2",
+    "vite": "^7.0.4"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TreAle3/icon-generator-multi-platform.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TreAle3/icon-generator-multi-platform/issues"
+  },
+  "homepage": "https://github.com/TreAle3/icon-generator-multi-platform#readme",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
