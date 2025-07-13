@@ -1,66 +1,25 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Upload, Download, Settings, Smartphone, Monitor, Globe, Apple, CheckCircle, Loader } from 'lucide-react';
-import JSZip from 'jszip';
+import JSZip from 'jszip'; // Non usato direttamente
+import Pica from 'pica'; // Non usato direttamente
 
-// Simulazione delle librerie (in un progetto reale sarebbero importate)
-const Pica = {
-  resize: async (source, target, options) => {
-    // Simulazione del resize con Pica
-    const ctx = target.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(source, 0, 0, target.width, target.height);
-    return target;
-  }
-};
+// Funzioni da ic-immagini.tsx
+import { 
+  generaIcone, 
+  optimizeIcons 
+} from './ic-immagini';
 
-// Definizioni delle piattaforme e dimensioni
-const PLATFORMS = {
-  android: {
-    name: 'Android',
-    icon: Smartphone,
-    sizes: [
-      { name: 'mdpi', size: 48, folder: 'mipmap-mdpi' },
-      { name: 'hdpi', size: 72, folder: 'mipmap-hdpi' },
-      { name: 'xhdpi', size: 96, folder: 'mipmap-xhdpi' },
-      { name: 'xxhdpi', size: 144, folder: 'mipmap-xxhdpi' },
-      { name: 'xxxhdpi', size: 192, folder: 'mipmap-xxxhdpi' },
-      { name: 'play-store', size: 512, folder: 'play-store' }
-    ]
-  },
-  ios: {
-    name: 'iOS',
-    icon: Apple,
-    sizes: [
-      { name: 'notification', size: 20, folder: 'AppIcon.appiconset' },
-      { name: 'settings', size: 29, folder: 'AppIcon.appiconset' },
-      { name: 'spotlight', size: 40, folder: 'AppIcon.appiconset' },
-      { name: 'app-iphone', size: 60, folder: 'AppIcon.appiconset' },
-      { name: 'app-ipad', size: 76, folder: 'AppIcon.appiconset' },
-      { name: 'app-store', size: 1024, folder: 'AppIcon.appiconset' }
-    ]
-  },
-  windows: {
-    name: 'Windows',
-    icon: Monitor,
-    sizes: [
-      { name: 'small-tile', size: 71, folder: 'tiles' },
-      { name: 'medium-tile', size: 150, folder: 'tiles' },
-      { name: 'large-tile', size: 310, folder: 'tiles' },
-      { name: 'taskbar', size: 24, folder: 'taskbar' }
-    ]
-  },
-  browser: {
-    name: 'Browser',
-    icon: Globe,
-    sizes: [
-      { name: 'favicon-16', size: 16, folder: 'favicon' },
-      { name: 'favicon-32', size: 32, folder: 'favicon' },
-      { name: 'apple-touch', size: 180, folder: 'favicon' },
-      { name: 'android-chrome', size: 192, folder: 'favicon' }
-    ]
-  }
-};
+
+// Funzioni da ic-piattaforme.tsx
+import { 
+  PLATFORMS 
+} from './ic-piattaforme';
+
+
+// Funzioni da ic-file-zip.tsx
+import { 
+  createAndDownloadZip
+} from './ic-file-zip';
 
 // Componente Upload Area
 const UploadArea = ({ onFileUpload, isDragging, setIsDragging, uploadedFile }) => {
@@ -140,13 +99,21 @@ const UploadArea = ({ onFileUpload, isDragging, setIsDragging, uploadedFile }) =
 };
 
 // Componente Platform Selector
-const PlatformSelector = ({ selectedPlatforms, onPlatformChange }) => {
+const HtmlSceltaPiattaforme = ({ selectedPlatforms, onPlatformChange }) => {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900">Seleziona Piattaforme</h3>
       <div className="grid grid-cols-2 gap-4">
         {Object.entries(PLATFORMS).map(([key, platform]) => {
-          const Icon = platform.icon;
+          // Aggiungi le icone Lucide per ogni piattaforma
+          const iconMap = {
+            android: Smartphone,
+            ios: Apple,
+            windows: Monitor,
+            browser: Globe
+          };
+          const Icon = iconMap[key] || Smartphone;
+          
           return (
             <label key={key} className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
               <input
@@ -222,455 +189,6 @@ const PreviewGrid = ({ generatedIcons, isOptimized }) => {
   );
 };
 
-// Funzione per resize con Canvas API (simulazione di Pica)
-const resizeImageWithCanvas = async (sourceCanvas, targetWidth, targetHeight) => {
-  const targetCanvas = document.createElement('canvas');
-  const targetCtx = targetCanvas.getContext('2d');
-  
-  targetCanvas.width = targetWidth;
-  targetCanvas.height = targetHeight;
-  
-  targetCtx.imageSmoothingEnabled = true;
-  targetCtx.imageSmoothingQuality = 'high';
-  
-  if (targetWidth < 64 || targetHeight < 64) {
-    targetCtx.filter = 'contrast(1.1) brightness(1.05) saturate(1.1)';
-  }
-  
-  targetCtx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
-  targetCtx.filter = 'none';
-  
-  return targetCanvas;
-};
-
-// Funzione per generare icone
-const generateIcons = async (file, platforms, onProgress) => {
-  const img = new Image();
-  
-  return new Promise((resolve) => {
-    img.onload = async () => {
-      const icons = [];
-      let totalSizes = 0;
-      let completedSizes = 0;
-
-      platforms.forEach(platform => {
-        totalSizes += PLATFORMS[platform].sizes.length;
-      });
-
-      const sourceCanvas = document.createElement('canvas');
-      const sourceCtx = sourceCanvas.getContext('2d');
-      
-      const maxSize = Math.max(img.width, img.height);
-      const optimalSize = maxSize < 512 ? 512 : maxSize;
-      
-      sourceCanvas.width = optimalSize;
-      sourceCanvas.height = optimalSize;
-      
-      sourceCtx.imageSmoothingEnabled = true;
-      sourceCtx.imageSmoothingQuality = 'high';
-      
-      const scale = Math.min(optimalSize / img.width, optimalSize / img.height);
-      const scaledWidth = img.width * scale;
-      const scaledHeight = img.height * scale;
-      const x = (optimalSize - scaledWidth) / 2;
-      const y = (optimalSize - scaledHeight) / 2;
-      
-      sourceCtx.clearRect(0, 0, optimalSize, optimalSize);
-      sourceCtx.drawImage(img, x, y, scaledWidth, scaledHeight);
-
-      for (const platform of platforms) {
-        const platformData = PLATFORMS[platform];
-        
-        for (const sizeData of platformData.sizes) {
-          const size = sizeData.size;
-          
-          try {
-            const resizedCanvas = await resizeImageWithCanvas(sourceCanvas, size, size);
-            const dataUrl = resizedCanvas.toDataURL('image/png', 1.0);
-            
-            icons.push({
-              platform: platformData.name,
-              size: size,
-              name: sizeData.name,
-              folder: sizeData.folder,
-              dataUrl: dataUrl,
-              quality: 'high'
-            });
-            
-          } catch (error) {
-            console.error(`Errore generando icona ${size}px:`, error);
-          }
-          
-          completedSizes++;
-          onProgress((completedSizes / totalSizes) * 100);
-          
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-      }
-      
-      resolve(icons);
-    };
-    
-    img.onerror = () => {
-      console.error('Errore nel caricamento dell\'immagine');
-      resolve([]);
-    };
-    
-    img.src = URL.createObjectURL(file);
-  });
-};
-
-// Funzione per ottimizzare icone
-const optimizeIcons = async (icons, onProgress) => {
-  const optimizedIcons = [];
-  
-  for (let i = 0; i < icons.length; i++) {
-    const icon = icons[i];
-    
-    try {
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      await new Promise((resolve) => {
-        img.onload = () => {
-          canvas.width = icon.size;
-          canvas.height = icon.size;
-          ctx.drawImage(img, 0, 0);
-          resolve();
-        };
-        img.src = icon.dataUrl;
-      });
-      
-      const optimizedCanvas = document.createElement('canvas');
-      const optimizedCtx = optimizedCanvas.getContext('2d');
-      optimizedCanvas.width = icon.size;
-      optimizedCanvas.height = icon.size;
-      
-      optimizedCtx.imageSmoothingEnabled = true;
-      optimizedCtx.imageSmoothingQuality = 'high';
-      
-      if (icon.size < 64) {
-        optimizedCtx.filter = 'contrast(1.2) brightness(1.1) saturate(1.2)';
-      }
-      
-      optimizedCtx.drawImage(canvas, 0, 0);
-      optimizedCtx.filter = 'none';
-      
-      const quality = icon.size > 256 ? 0.9 : 0.95;
-      const optimizedDataUrl = optimizedCanvas.toDataURL('image/png', quality);
-      
-      const originalSize = Math.round(icon.dataUrl.length * 0.75 / 1024);
-      const optimizedSize = Math.round(optimizedDataUrl.length * 0.75 / 1024);
-      const savings = Math.round((1 - optimizedSize / originalSize) * 100);
-      
-      optimizedIcons.push({
-        ...icon,
-        dataUrl: optimizedDataUrl,
-        optimized: true,
-        originalSize: originalSize + 'KB',
-        optimizedSize: optimizedSize + 'KB',
-        savings: savings + '%',
-        quality: 'premium'
-      });
-      
-    } catch (error) {
-      console.error(`Errore ottimizzando icona ${icon.size}px:`, error);
-      optimizedIcons.push({
-        ...icon,
-        optimized: false,
-        quality: 'standard'
-      });
-    }
-    
-    onProgress(((i + 1) / icons.length) * 100);
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  
-  return optimizedIcons;
-};
-
-// Funzione per convertire dataURL in blob
-const dataURLtoBlob = (dataURL) => {
-  const arr = dataURL.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-};
-
-// Funzione per convertire dataURL in array di bytes
-const dataURLtoUint8Array = (dataURL) => {
-  const arr = dataURL.split(',');
-  const bstr = atob(arr[1]);
-  const u8arr = new Uint8Array(bstr.length);
-  for (let i = 0; i < bstr.length; i++) {
-    u8arr[i] = bstr.charCodeAt(i);
-  }
-  return u8arr;
-};
-
-// Funzione per creare Contents.json per iOS
-const createiOSContentsJson = (iOSIcons) => {
-  if (!iOSIcons || iOSIcons.length === 0) return null;
-  
-  const images = iOSIcons.map(icon => ({
-    size: `${icon.size}x${icon.size}`,
-    idiom: icon.size <= 40 ? 'universal' : icon.size <= 76 ? 'iphone' : 'ipad',
-    filename: `icon-${icon.size}x${icon.size}.png`,
-    scale: '1x'
-  }));
-  
-  const contents = {
-    images: images,
-    info: {
-      author: 'icon-generator',
-      version: 1
-    }
-  };
-  
-  return JSON.stringify(contents, null, 2);
-};
-
-// Funzione per creare Web App Manifest
-const createWebManifest = (browserIcons) => {
-  if (!browserIcons || browserIcons.length === 0) return null;
-  
-  const icons = browserIcons.map(icon => ({
-    src: `favicon/favicon-${icon.size}x${icon.size}.png`,
-    sizes: `${icon.size}x${icon.size}`,
-    type: 'image/png'
-  }));
-  
-  const manifest = {
-    name: 'My App',
-    short_name: 'App',
-    icons: icons,
-    theme_color: '#ffffff',
-    background_color: '#ffffff',
-    display: 'standalone'
-  };
-  
-  return JSON.stringify(manifest, null, 2);
-};
-
-// Funzione corretta per creare e scaricare il ZIP
-const createAndDownloadZip = async (icons, isOptimized) => {
-  try {
-    // Crea una nuova istanza di JSZip
-    const zip = new JSZip();
-    
-    // Organizza le icone per piattaforma
-    const platformFolders = {};
-    
-    icons.forEach(icon => {
-      const platformKey = icon.platform.toLowerCase();
-      const folderName = icon.folder;
-      
-      if (!platformFolders[platformKey]) {
-        platformFolders[platformKey] = {};
-      }
-      
-      if (!platformFolders[platformKey][folderName]) {
-        platformFolders[platformKey][folderName] = [];
-      }
-      
-      platformFolders[platformKey][folderName].push(icon);
-    });
-    
-    // Aggiungi le icone al ZIP
-    let totalFiles = 0;
-    
-    for (const [platform, folders] of Object.entries(platformFolders)) {
-      for (const [folderName, iconList] of Object.entries(folders)) {
-        iconList.forEach(icon => {
-          let fileName = '';
-          
-          switch (platform) {
-            case 'android':
-              fileName = `ic_launcher.png`;
-              break;
-            case 'ios':
-              fileName = `icon-${icon.size}x${icon.size}.png`;
-              break;
-            case 'windows':
-              fileName = `icon-${icon.size}x${icon.size}.png`;
-              break;
-            case 'browser':
-              if (icon.name.includes('favicon')) {
-                fileName = `favicon-${icon.size}x${icon.size}.png`;
-              } else if (icon.name.includes('apple-touch')) {
-                fileName = `apple-touch-icon-${icon.size}x${icon.size}.png`;
-              } else {
-                fileName = `android-chrome-${icon.size}x${icon.size}.png`;
-              }
-              break;
-            default:
-              fileName = `icon-${icon.size}x${icon.size}.png`;
-          }
-          
-          const fullPath = `icons/${platform}/${folderName}/${fileName}`;
-          
-          // Converti dataURL in blob
-          const imageData = dataURLtoBlob(icon.dataUrl);
-          
-          // Aggiungi al ZIP
-          zip.file(fullPath, imageData);
-          totalFiles++;
-        });
-      }
-    }
-    
-    // Aggiungi README
-    const readmeContent = createSafeReadmeContent(icons, isOptimized);
-    zip.file('README.md', readmeContent);
-    totalFiles++;
-    
-    // Aggiungi file di configurazione per ogni piattaforma
-    
-    // Contents.json per iOS
-    const iOSContents = createiOSContentsJson(icons.filter(i => i.platform === 'iOS'));
-    if (iOSContents) {
-      zip.file('icons/ios/AppIcon.appiconset/Contents.json', iOSContents);
-      totalFiles++;
-    }
-    
-    // Web App Manifest per browser
-    const webManifest = createWebManifest(icons.filter(i => i.platform === 'Browser'));
-    if (webManifest) {
-      zip.file('icons/browser/manifest.json', webManifest);
-      totalFiles++;
-    }
-    
-    // Genera il ZIP
-    console.log(`Generando ZIP con ${totalFiles} file...`);
-    
-    const zipBlob = await zip.generateAsync({
-      type: 'blob',
-      compression: 'DEFLATE',
-      compressionOptions: {
-        level: 9
-      }
-    });
-    
-    console.log('ZIP generato:', zipBlob.size, 'bytes');
-    
-    // Verifica che il ZIP non sia vuoto
-    if (zipBlob.size < 100) {
-      throw new Error('ZIP generato troppo piccolo, possibile errore');
-    }
-    
-    // Crea il link di download
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `icone-multi-piattaforma-${new Date().toISOString().split('T')[0]}.zip`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    // Cleanup
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 1000);
-    
-    return { success: true, fileCount: totalFiles };
-    
-  } catch (error) {
-    console.error('Errore nella creazione del ZIP:', error);
-    throw new Error(`Errore ZIP: ${error.message}`);
-  }
-};
-
-// Funzione per creare contenuto README sicuro
-const createSafeReadmeContent = (icons, isOptimized) => {
-  const date = new Date().toLocaleDateString('it-IT');
-  const averageSavings = isOptimized ? 
-    Math.round(icons.reduce((acc, icon) => 
-      acc + (parseInt(icon.savings) || 0), 0) / icons.length) : 0;
-  
-  // Testo semplice senza caratteri speciali problematici
-  const content = `# Icone Generate - Multi-Piattaforma
-
-## Struttura delle Cartelle
-
-### Android
-- **mipmap-mdpi/**: 48x48px (density ~160dpi)
-- **mipmap-hdpi/**: 72x72px (density ~240dpi)
-- **mipmap-xhdpi/**: 96x96px (density ~320dpi)
-- **mipmap-xxhdpi/**: 144x144px (density ~480dpi)
-- **mipmap-xxxhdpi/**: 192x192px (density ~640dpi)
-- **play-store/**: 512x512px (Google Play Store)
-
-### iOS
-- **AppIcon.appiconset/**: Contiene tutte le dimensioni per iOS
-  - icon-20.png: Notification (20x20)
-  - icon-29.png: Settings (29x29)
-  - icon-40.png: Spotlight (40x40)
-  - icon-60.png: App iPhone (60x60)
-  - icon-76.png: App iPad (76x76)
-  - icon-1024.png: App Store (1024x1024)
-
-### Windows
-- **tiles/**: Icone per Windows tiles
-- **taskbar/**: Icone per taskbar
-
-### Browser
-- **favicon/**: Icone per browser
-  - favicon-16x16.png
-  - favicon-32x32.png
-  - android-chrome-192x192.png
-  - apple-touch-icon-180x180.png
-
-## Istruzioni per l'Uso
-
-### Android
-1. Copia le cartelle mipmap-* in \`app/src/main/res/\`
-2. Carica l'icona del Play Store nel Google Play Console
-
-### iOS
-1. Sostituisci il contenuto di AppIcon.appiconset nel tuo progetto Xcode
-2. Assicurati che Contents.json sia configurato correttamente
-
-### Windows
-1. Usa le icone della cartella tiles per le Live Tiles
-2. Usa l'icona taskbar per la barra delle applicazioni
-
-### Browser
-1. Aggiungi le favicon nella root del tuo sito web
-2. Includi i meta tag appropriati nell'HTML
-
-## Qualità delle Icone
-
-${isOptimized ? `
-✅ **Ottimizzate con Canvas API**
-- Resize di alta qualità
-- Sharpening adattivo
-- Compressione intelligente
-
-**Statistiche:**
-- Icone generate: ${icons.length}
-- Spazio risparmiato medio: ${Math.round(icons.reduce((acc, icon) => 
-  acc + (parseInt(icon.savings) || 0), 0) / icons.length)}%
-- Qualità: Premium
-` : `
-📱 **Qualità Standard**
-- Resize con Canvas API
-- Qualità buona per uso generale
-- Pronte per essere ottimizzate
-`}
-
-Generato il ${new Date().toLocaleString('it-IT')}
-`;
-
-  return content;
-};
-
 // Componente principale
 const IconGenerator = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -699,7 +217,7 @@ const IconGenerator = () => {
     setGenerationProgress(0);
 
     try {
-      const icons = await generateIcons(uploadedFile, selectedPlatforms, setGenerationProgress);
+      const icons = await generaIcone(uploadedFile, selectedPlatforms, setGenerationProgress);
       setGeneratedIcons(icons);
     } catch (error) {
       console.error('Errore nella generazione:', error);
@@ -775,7 +293,7 @@ const IconGenerator = () => {
             </div>
 
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <PlatformSelector 
+              <HtmlSceltaPiattaforme 
                 selectedPlatforms={selectedPlatforms}
                 onPlatformChange={setSelectedPlatforms}
               />
@@ -853,51 +371,105 @@ const IconGenerator = () => {
               </div>
             )}
 
-            {isOptimized && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Statistiche Ottimizzazione Premium
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {generatedIcons.length}
-                    </div>
-                    <div className="text-sm text-gray-600">Icone Generate</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {Math.round(generatedIcons.reduce((acc, icon) => 
-                        acc + (parseInt(icon.savings) || 0), 0) / generatedIcons.length)}%
-                    </div>
-                    <div className="text-sm text-gray-600">Spazio Risparmiato</div>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      Pica.js
-                    </div>
-                    <div className="text-sm text-gray-600">Engine Qualità</div>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {generatedIcons.filter(i => i.quality === 'premium').length}
-                    </div>
-                    <div className="text-sm text-gray-600">Qualità Premium</div>
-                  </div>
-                </div>
-                
-                {/* Dettagli ottimizzazione */}
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">Tecnologie Utilizzate:</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• <strong>Algoritmo Lanczos:</strong> Resize di qualità professionale</li>
-                    <li>• <strong>Unsharp Masking:</strong> Sharpening adattivo per ogni dimensione</li>
-                    <li>• <strong>Alpha Preservation:</strong> Trasparenza perfetta</li>
-                    <li>• <strong>Web Workers:</strong> Elaborazione non-bloccante</li>
-                  </ul>
-                </div>
-              </div>
-            )}
+			{isOptimized && (
+			  <div className="bg-white rounded-lg shadow-sm p-6">
+				<h3 className="text-lg font-medium text-gray-900 mb-4">
+				  Statistiche Ottimizzazione Premium
+				</h3>
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+				  <div className="text-center p-4 bg-blue-50 rounded-lg">
+					<div className="text-2xl font-bold text-blue-600">
+					  {generatedIcons.length}
+					</div>
+					<div className="text-sm text-gray-600">Icone Generate</div>
+				  </div>
+				  <div className="text-center p-4 bg-green-50 rounded-lg">
+					<div className="text-2xl font-bold text-green-600">
+					  {Math.round(generatedIcons.reduce((acc, icon) => 
+						acc + (parseInt(icon.savings?.replace('%', '')) || 0), 0) / generatedIcons.length)}%
+					</div>
+					<div className="text-sm text-gray-600">Spazio Risparmiato</div>
+				  </div>
+				  <div className="text-center p-4 bg-purple-50 rounded-lg">
+					<div className="text-2xl font-bold text-purple-600">
+					  Image-Q
+					</div>
+					<div className="text-sm text-gray-600">Quantizzazione</div>
+				  </div>
+				  <div className="text-center p-4 bg-orange-50 rounded-lg">
+					<div className="text-2xl font-bold text-orange-600">
+					  {generatedIcons.filter(i => i.quality === 'premium').length}
+					</div>
+					<div className="text-sm text-gray-600">Qualità Premium</div>
+				  </div>
+				</div>
+				
+				{/* Dettagli ottimizzazione aggiornati */}
+				<div className="mt-4 p-3 bg-gray-50 rounded-lg">
+				  <h4 className="font-medium text-gray-900 mb-2">Pipeline di Ottimizzazione:</h4>
+				  <ul className="text-sm text-gray-600 space-y-1">
+					<li>• <strong>Fase 1 - Pica.js:</strong> Resize professionale con filtro Lanczos</li>
+					<li>• <strong>Fase 2 - Image-Q:</strong> Quantizzazione colori algoritmo Wu</li>
+					<li>• <strong>Unsharp Masking:</strong> Sharpening adattivo per icone piccole</li>
+					<li>• <strong>Palette Optimization:</strong> Riduzione a 256 colori ottimali</li>
+					<li>• <strong>Alpha Preservation:</strong> Trasparenza perfetta mantenuta</li>
+					<li>• <strong>Quality Mode:</strong> {generatedIcons.filter(i => i.quality === 'premium').length > 0 ? 'Premium (Pica + Image-Q)' : 'High (Pica only)'}</li>
+				  </ul>
+				</div>
+
+				{/* Dettagli tecnici algoritmi */}
+				<div className="mt-4 p-3 bg-blue-50 rounded-lg">
+				  <h4 className="font-medium text-gray-900 mb-2">Algoritmi Utilizzati:</h4>
+				  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+					<div>
+					  <strong className="text-blue-700">Resize Engine:</strong>
+					  <ul className="text-gray-600 mt-1 space-y-1">
+						<li>• Lanczos interpolation (quality: 3)</li>
+						<li>• Adaptive unsharp masking</li>
+						<li>• High-quality image smoothing</li>
+					  </ul>
+					</div>
+					<div>
+					  <strong className="text-green-700">Color Quantization:</strong>
+					  <ul className="text-gray-600 mt-1 space-y-1">
+						<li>• Wu quantization algorithm</li>
+						<li>• Euclidean distance formula</li>
+						<li>• 256-color palette optimization</li>
+					  </ul>
+					</div>
+				  </div>
+				</div>
+
+				{/* Statistiche file size se disponibili */}
+				{generatedIcons.some(icon => icon.originalSize && icon.optimizedSize) && (
+				  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+					<h4 className="font-medium text-gray-900 mb-2">Riduzione Dimensioni:</h4>
+					<div className="text-sm text-gray-600">
+					  <div className="flex justify-between mb-1">
+						<span>Dimensione originale media:</span>
+						<span className="font-medium">
+						  {Math.round(generatedIcons.reduce((acc, icon) => 
+							acc + (parseInt(icon.originalSize?.replace('KB', '')) || 0), 0) / generatedIcons.length)}KB
+						</span>
+					  </div>
+					  <div className="flex justify-between mb-1">
+						<span>Dimensione ottimizzata media:</span>
+						<span className="font-medium text-green-600">
+						  {Math.round(generatedIcons.reduce((acc, icon) => 
+							acc + (parseInt(icon.optimizedSize?.replace('KB', '')) || 0), 0) / generatedIcons.length)}KB
+						</span>
+					  </div>
+					  <div className="flex justify-between">
+						<span>Totale file ottimizzati:</span>
+						<span className="font-medium text-blue-600">
+						  {generatedIcons.filter(i => i.optimized).length}/{generatedIcons.length}
+						</span>
+					  </div>
+					</div>
+				  </div>
+				)}
+			  </div>
+			)}
           </div>
         </div>
       </div>
